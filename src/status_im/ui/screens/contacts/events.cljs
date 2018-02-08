@@ -4,6 +4,7 @@
             [status-im.data-store.contacts :as contacts]
             [clojure.string :as s]
             [status-im.protocol.core :as protocol]
+            [status-im.protocol.handlers :as protocol-handlers]
             [status-im.utils.utils :refer [http-post]]
             [status-im.utils.random :as random]
             [taoensso.timbre :as log]
@@ -240,9 +241,16 @@
 (defn send-contact-request
   "Takes effects map, adds effects necessary to send a contact request"
   [{{:accounts/keys [accounts current-account-id] :as db} :db :as fx} contact]
-  (let [current-account (get accounts current-account-id)
+  (let [{:keys [name photo-path address public-key]} (get accounts current-account-id)
         fcm-token (get-in db [:notifications :fcm-token])]
-    (assoc fx
+    (merge fx (protocol-handlers/send-status-message-fx db
+                                                        public-key
+                                                        :contact/request
+                                                        {:name          name
+                                                         :profile-image photo-path
+                                                         :address       address
+                                                         :fcm-token     fcm-token}))
+    #_(assoc fx
            ::send-contact-request-fx
            (merge
              (select-keys db [:current-public-key :web3])

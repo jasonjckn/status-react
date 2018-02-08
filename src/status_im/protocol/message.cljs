@@ -71,19 +71,17 @@
 (defmulti send-options :message-type)
 
 (defmethod send-options :contact/request
-  [{:keys [message-type db chat-id status-message]}]
-  (let [{:accounts/keys [account]} db]
-    {:message {:sig (:public-key account)
-               :pubKey chat-id
-               :ttl ttl
-               :payload [0 :contact/request status-message]
-               :topic web3.filtering/status-topic}}))
+  [{:keys [message-type db chat-id status-message]}] 
+  {:message {:sig (:current-public-key db)
+             :pubKey chat-id
+             :ttl ttl
+             :payload [0 :contact/request status-message]
+             :topic ping-topic #_web3.filtering/status-topic}})
 
 (defmethod send-options :contact/message
-  [{:keys [message-type db chat-id status-message]}]
-  (let [{:accounts/keys [account]} db]
-    {:message {:sig (:public-key account)
-               :pubKey chat-id
-               :ttl ttl
-               :payload [0 :contact/message status-message]
-               :topic web3.filtering/status-topic}}))
+  [{:keys [message-type db chat-id status-message]}] 
+  {:message {:sig (:current-public-key db)
+             :pubKey chat-id
+             :ttl ttl
+             :payload [0 :contact/message status-message]
+             :topic ping-topic #_web3.filtering/status-topic}})

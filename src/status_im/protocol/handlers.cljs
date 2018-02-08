@@ -15,6 +15,7 @@
             [status-im.protocol.message-cache :as cache]
             [status-im.protocol.message :as message]
             [status-im.protocol.listeners :as listeners]
+            [status-im.chat.models :as models.chat]
             [status-im.chat.models.message :as models.message]
             [status-im.protocol.web3.inbox :as inbox]
             [status-im.protocol.web3.keys :as web3.keys]
@@ -641,23 +642,52 @@
       ;; TODO (yenda) add logic for message-type options and protocol version handling
       {:dispatch [:protocol/receive-status-message sig recipientPublicKey message-type status-message]})))
 
-(handlers/register-handler-fx
-  :protocol/send-status-message
-  [re-frame/trim-v]
-  (fn [{:keys [db] :as cofx} [chat-id message-type status-message]]
-    {:shh/post (merge {:web3 (:web3 db)
-                       :success-event  :protocol/send-status-message-success
-                       :error-event    :protocol/send-status-message-error}
-                      (message/send-options {:message-type message-type
-                                             :db db
-                                             :chat-id chat-id
-                                             :status-message status-message}))}))
+(defn send-status-message-fx
+  [{:keys [web3] :as db} chat-id message-type status-message]
+  {:shh/post (merge {:web3          web3
+                     :success-event :protocol/send-status-message-success
+                     :error-event   :protocol/send-status-message-error}
+                    (message/send-options {:message-type   message-type
+                                           :db             db
+                                           :chat-id        chat-id
+                                           :status-message status-message}))})
+
+(defn- receive-contact-request
+  [{{:contacts/keys [contacts] :keys [current-public-key] :as db} :db :as cofx}
+   public-key
+   {:keys [name profile-image address fcm-token] :as contact-info}]
+  (when (and (not (get contacts public-key))
+             (not= public-key current-public-key)) ; TODO janherich - this filtering should probably happen on transport layer
+    ;; New contact, need to add it do db
+    (let [contact {:whisper-identity public-key
+                   :public-key       public-key
+                   :address          address
+                   :photo-path       profile-image
+                   :name             name
+                   :fcm-token        fcm-token
+                   :pending          true}
+          fx      {:db           (update db :contacts/contacts assoc public-key contact)
+                   :save-contact contact}]
+      (merge fx (models.chat/add-chat (assoc cofx :db (:db fx))
+                                      public-key
+                                      {:name         name
+                                       :chat-id      public-key
+                                       :contact-info (prn-str contact-info)})))))
+
+(def message-type->handler
+  {:contact/request (fn [cofx public-key _ payload]
+                      (receive-contact-request cofx public-key payload))
+   :contact/message (fn [_ public-key chat-id payload]
+                      {:dispatch [:pre-received-message (assoc payload
+                                                               :chat-id chat-id
+                                                               :from    public-key)]})})
 
 (handlers/register-handler-fx
   :protocol/receive-status-message
   [re-frame/trim-v]
-  (fn [{:keys [db] :as cofx} [signature chat-id message-type status-message]]
-    (case message-type
+  (fn [cofx [signature chat-id message-type status-message]]
+    (if-let [handler (get message-type->handler message-type)]
+      (handler cofx signature chat-id status-message)
       (log/error :unknown-message-type message-type))))
 
 (handlers/register-handler-fx
@@ -665,7 +695,6 @@
   [re-frame/trim-v]
   (fn [{:keys [db] :as cofx} [_ resp]]
     (log/debug :send-status-message-success resp)))
-
 
 (handlers/register-handler-fx
   :protocol/send-status-message-error
