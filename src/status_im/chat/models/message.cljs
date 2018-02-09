@@ -1,6 +1,7 @@
 (ns status-im.chat.models.message
   (:require [re-frame.core :as re-frame]
             [status-im.constants :as constants]
+            [status-im.protocol.handlers :as protocol-handlers]
             [status-im.chat.events.console :as console-events]
             [status-im.chat.events.requests :as requests-events]
             [status-im.chat.models :as chat-model]
@@ -161,6 +162,11 @@
                      payload)]
       (assoc message' :payload payload))))
 
+(defn- generate-new-protocol-message [{:keys [command message]}] 
+  (-> (or command message)
+      (select-keys [:message-id :content :content-type :clock-value])
+      (assoc :timestamp (datetime-utils/now-ms))))
+
 (defn send
   [{{:keys          [web3 chats]
      :accounts/keys [accounts current-account-id]
@@ -187,6 +193,11 @@
           :else
           (merge {:send-message (assoc-in options [:message :to] chat-id)}
                  (when-not command) {:send-notification fcm-token}))))))
+
+(defn- send-new-protocol [{:keys [db]} {:keys [chat-id] :as args}]
+  ;; Simple 1-1 message case only
+  (protocol-handlers/send-status-message-fx
+   db chat-id :contact/message (generate-new-protocol-message args)))
 
 (defn- prepare-message [params chat]
   (let [{:keys [chat-id identity message-text]} params
@@ -224,7 +235,7 @@
     (-> (merge fx (chat-model/upsert-chat (assoc fx :now now)
                                           {:chat-id chat-id}))
         (as-> fx'
-            (merge fx' (send fx' params'))))))
+            (merge fx' (send-new-protocol fx' params'))))))
 
 (defn- prepare-command
   [identity chat-id clock-value
@@ -296,7 +307,7 @@
 
       true
       (as-> fx'
-          (merge fx' (send fx' params')))
+          (merge fx' (send-new-protocol fx' params')))
 
       (:to-message command')
       (assoc :chat-requests/mark-as-answered {:chat-id    chat-id
