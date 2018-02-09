@@ -80,7 +80,7 @@
     (protocol/reset-pending-messages! from)))
 
 (reg-fx
-  ::save-contact
+  :save-contact
   (fn [contact]
     (contacts/save contact)))
 
@@ -120,8 +120,8 @@
   :update-contact!
   (fn [{:keys [db]} [_ {:keys [whisper-identity] :as contact}]]
     (when (get-in db [:contacts/contacts whisper-identity])
-      {:db            (update-in db [:contacts/contacts whisper-identity] merge contact)
-       ::save-contact contact})))
+      {:db           (update-in db [:contacts/contacts whisper-identity] merge contact)
+       :save-contact contact})))
 
 (defn- update-pending-status [old-contacts {:keys [whisper-identity pending?] :as contact}]
   (let [{old-pending :pending?
@@ -244,7 +244,7 @@
   (let [{:keys [name photo-path address public-key]} (get accounts current-account-id)
         fcm-token (get-in db [:notifications :fcm-token])]
     (merge fx (protocol-handlers/send-status-message-fx db
-                                                        public-key
+                                                        (:whisper-identity contact)
                                                         :contact/request
                                                         {:name          name
                                                          :profile-image photo-path
@@ -264,7 +264,7 @@
       (send-contact-request contact)
       (update-in [:db :contacts/contacts whisper-identity] merge contact)
       (assoc-in  [:db :contacts/new-identity] "")
-      (assoc ::save-contact contact)))
+      (assoc :save-contact contact)))
 
 (register-handler-fx
   :add-new-contact-and-open-chat
@@ -285,8 +285,8 @@
                         :address (public-key->address chat-or-whisper-id)
                         :pending? false)]
     (-> fx
-        (watch-contact contact')
-        (discover-events/send-portions-when-contact-exists chat-or-whisper-id)
+        #_(watch-contact contact')
+        #_(discover-events/send-portions-when-contact-exists chat-or-whisper-id)
         (add-new-contact contact'))))
 
 (register-handler-fx

@@ -653,26 +653,30 @@
                                            :status-message status-message}))})
 
 (defn- receive-contact-request
-  [{{:contacts/keys [contacts] :keys [current-public-key] :as db} :db :as cofx}
+  [{{:contacts/keys [contacts] :as db} :db :as cofx}
    public-key
-   {:keys [name profile-image address fcm-token] :as contact-info}]
-  (when (and (not (get contacts public-key))
-             (not= public-key current-public-key)) ; TODO janherich - this filtering should probably happen on transport layer
-    ;; New contact, need to add it do db
-    (let [contact {:whisper-identity public-key
-                   :public-key       public-key
-                   :address          address
-                   :photo-path       profile-image
-                   :name             name
-                   :fcm-token        fcm-token
-                   :pending          true}
-          fx      {:db           (update db :contacts/contacts assoc public-key contact)
-                   :save-contact contact}]
-      (merge fx (models.chat/add-chat (assoc cofx :db (:db fx))
-                                      public-key
-                                      {:name         name
-                                       :chat-id      public-key
-                                       :contact-info (prn-str contact-info)})))))
+   {:keys [name profile-image address fcm-token]}]
+  (let [contact (get contacts public-key)]
+    ;; When the contact is added but pending, ignore further contact requests
+    (when-not (:pending? contact)
+      (let [contact-props {:whisper-identity public-key
+                           :public-key       public-key
+                           :address          address
+                           :photo-path       profile-image
+                           :name             name
+                           :fcm-token        fcm-token
+                           :pending?         (if contact false true)}
+            fx            {:db           (update-in db [:contacts/contacts public-key] merge contact-props)
+                           :save-contact contact-props}
+            chat-props    {:name         name
+                           :chat-id      public-key
+                           :contact-info (prn-str contact-props)}]
+        (if-not contact
+          ;; New contact, need to add new chat to db 
+          (merge fx (models.chat/add-chat (assoc cofx :db (:db fx)) public-key chat-props))
+          ;; Newly added contact updates own info (+ chat info) by answering the request
+          ;; TODO janherich: this is super clunky and hacky, should be dedicated response with message type `:contact/request-confirmed`
+          (merge fx (models.chat/upsert-chat (assoc cofx :db (:db fx)) chat-props)))))))
 
 (def message-type->handler
   {:contact/request (fn [cofx public-key _ payload]
