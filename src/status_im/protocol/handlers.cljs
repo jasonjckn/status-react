@@ -642,45 +642,56 @@
       ;; TODO (yenda) add logic for message-type options and protocol version handling
       {:dispatch [:protocol/receive-status-message sig recipientPublicKey message-type status-message]})))
 
-(defn send-status-message-fx
-  [{:keys [web3] :as db} chat-id message-type status-message]
-  {:shh/post (merge {:web3          web3
-                     :success-event :protocol/send-status-message-success
-                     :error-event   :protocol/send-status-message-error}
-                    (message/send-options {:message-type   message-type
-                                           :db             db
-                                           :chat-id        chat-id
-                                           :status-message status-message}))})
+(handlers/register-handler-fx
+  :protocol/send-status-message
+  [re-frame/trim-v]
+  (fn [{:keys [db]} [chat-id message-type status-message]]
+    {:shh/post (merge {:web3          (:web3 db)
+                       :success-event :protocol/send-status-message-success
+                       :error-event   :protocol/send-status-message-error}
+                      (message/send-options {:message-type   message-type
+                                             :db             db
+                                             :chat-id        chat-id
+                                             :status-message status-message}))}))
 
 (defn- receive-contact-request
   [{{:contacts/keys [contacts] :as db} :db :as cofx}
    public-key
-   {:keys [name profile-image address fcm-token]}]
-  (let [contact (get contacts public-key)]
-    ;; When the contact is added but pending, ignore further contact requests
-    (when-not (:pending? contact)
-      (let [contact-props {:whisper-identity public-key
-                           :public-key       public-key
-                           :address          address
-                           :photo-path       profile-image
-                           :name             name
-                           :fcm-token        fcm-token
-                           :pending?         (if contact false true)}
-            fx            {:db           (update-in db [:contacts/contacts public-key] merge contact-props)
-                           :save-contact contact-props}
-            chat-props    {:name         name
-                           :chat-id      public-key
-                           :contact-info (prn-str contact-props)}]
-        (if-not contact
-          ;; New contact, need to add new chat to db 
-          (merge fx (models.chat/add-chat (assoc cofx :db (:db fx)) public-key chat-props))
-          ;; Newly added contact updates own info (+ chat info) by answering the request
-          ;; TODO janherich: this is super clunky and hacky, should be dedicated response with message type `:contact/request-confirmed`
-          (merge fx (models.chat/upsert-chat (assoc cofx :db (:db fx)) chat-props)))))))
+   {:keys [name profile-image address fcm-token]}] 
+  (when-not (get contacts public-key)
+    (let [contact-props {:whisper-identity public-key
+                         :public-key       public-key
+                         :address          address
+                         :photo-path       profile-image
+                         :name             name
+                         :fcm-token        fcm-token
+                         :pending?         true}
+          fx            {:db           (update-in db [:contacts/contacts public-key] merge contact-props)
+                         :save-contact contact-props}
+          chat-props    {:name         name
+                         :chat-id      public-key
+                         :contact-info (prn-str contact-props)}] 
+      (merge fx (models.chat/add-chat (assoc cofx :db (:db fx)) public-key chat-props)))))
+
+(defn- receive-contact-request-confirmation
+  [{{:contacts/keys [contacts] :as db} :db :as cofx} public-key {:keys [name profile-image address fcm-token]}]
+  (when-let [contact (get contacts public-key)]
+    (let [contact-props {:whisper-identity public-key
+                         :address          address 
+                         :photo-path       profile-image
+                         :name             name
+                         :fcm-token        fcm-token}
+          fx            {:db           (update-in db [:contacts/contacts public-key] merge contact-props)
+                         :save-contact contact-props}
+          chat-props    {:name    name
+                         :chat-id public-key}]
+      (merge fx (models.chat/upsert-chat (assoc cofx :db (:db fx)) chat-props)))))
 
 (def message-type->handler
   {:contact/request (fn [cofx public-key _ payload]
                       (receive-contact-request cofx public-key payload))
+   :contact/request-confirmed (fn [cofx public-key _ payload]
+                                (receive-contact-request-confirmation cofx public-key payload))
    :contact/message (fn [_ public-key chat-id payload]
                       {:dispatch [:pre-received-message (assoc payload
                                                                :chat-id chat-id

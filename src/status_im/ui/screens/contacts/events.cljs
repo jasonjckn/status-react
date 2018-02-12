@@ -3,8 +3,7 @@
             [status-im.utils.handlers :refer [register-handler-db register-handler-fx]]
             [status-im.data-store.contacts :as contacts]
             [clojure.string :as s]
-            [status-im.protocol.core :as protocol]
-            [status-im.protocol.handlers :as protocol-handlers]
+            [status-im.protocol.core :as protocol] 
             [status-im.utils.utils :refer [http-post]]
             [status-im.utils.random :as random]
             [taoensso.timbre :as log]
@@ -32,11 +31,11 @@
     (assoc coeffects :all-contacts (contacts/get-all))))
 
 (reg-cofx
- ::get-default-contacts-and-groups
- (fn [coeffects _]
-   (assoc coeffects
-          :default-contacts js-res/default-contacts
-          :default-groups js-res/default-contact-groups)))
+  ::get-default-contacts-and-groups
+  (fn [coeffects _]
+    (assoc coeffects
+           :default-contacts js-res/default-contacts
+           :default-groups js-res/default-contact-groups)))
 
 ;;;; FX
 
@@ -54,25 +53,6 @@
   (fn [{:keys [web3 whisper-identity]}]
     (protocol/stop-watching-user! {:web3     web3
                                    :identity whisper-identity})))
-
-(reg-fx
-  ::send-contact-request-fx
-  (fn [{:keys [web3 current-public-key name whisper-identity
-               photo-path current-account-id status fcm-token
-               updates-public-key updates-private-key] :as params}]
-    (protocol/contact-request!
-     {:web3    web3
-      :message {:from       current-public-key
-                :to         whisper-identity
-                :message-id (random/id)
-                :payload    {:contact {:name          name
-                                       :profile-image photo-path
-                                       :address       current-account-id
-                                       :status        status
-                                       :fcm-token     fcm-token}
-                             :keypair {:public  updates-public-key
-                                       :private updates-private-key}
-                             :timestamp (web3.utils/timestamp)}}})))
 
 (reg-fx
   ::reset-pending-messages
@@ -208,9 +188,9 @@
     (let [contacts-list (map #(vector (:whisper-identity %) %) all-contacts)
           contacts (into {} contacts-list)]
       {:db         (update db :contacts/contacts #(merge contacts %))})))
-       ;; TODO (yenda) this mapv was dispatching useless events, fixed but is it necessary if
-       ;; it was dispatching useless events before with nil
-       ;;:dispatch-n (mapv (fn [[_ contact]] [:watch-contact contact]) contacts)
+;; TODO (yenda) this mapv was dispatching useless events, fixed but is it necessary if
+;; it was dispatching useless events before with nil
+;;:dispatch-n (mapv (fn [[_ contact]] [:watch-contact contact]) contacts)
 
 
 (register-handler-fx
@@ -238,30 +218,16 @@
             :contacts/click-handler
             :contacts/click-action)))
 
-(defn send-contact-request
-  "Takes effects map, adds effects necessary to send a contact request"
-  [{{:accounts/keys [accounts current-account-id] :as db} :db :as fx} contact]
-  (let [{:keys [name photo-path address public-key]} (get accounts current-account-id)
+(defn- own-info [{:accounts/keys [accounts current-account-id] :as db}]
+  (let [{:keys [name photo-path address]} (get accounts current-account-id)
         fcm-token (get-in db [:notifications :fcm-token])]
-    (merge fx (protocol-handlers/send-status-message-fx db
-                                                        (:whisper-identity contact)
-                                                        :contact/request
-                                                        {:name          name
-                                                         :profile-image photo-path
-                                                         :address       address
-                                                         :fcm-token     fcm-token}))
-    #_(assoc fx
-           ::send-contact-request-fx
-           (merge
-             (select-keys db [:current-public-key :web3])
-             {:current-account-id current-account-id :fcm-token fcm-token}
-             (select-keys contact [:whisper-identity])
-             (select-keys current-account [:name :photo-path :status
-                                           :updates-public-key :updates-private-key])))))
+    {:name          name
+     :profile-image photo-path
+     :address       address
+     :fcm-token     fcm-token}))
 
-(defn add-new-contact [fx {:keys [whisper-identity] :as contact}]
+(defn- add-new-contact [fx {:keys [whisper-identity] :as contact}]
   (-> fx
-      (send-contact-request contact)
       (update-in [:db :contacts/contacts whisper-identity] merge contact)
       (assoc-in  [:db :contacts/new-identity] "")
       (assoc :save-contact contact)))
@@ -274,7 +240,8 @@
         (-> {:db db}
             (add-new-contact contact)
             (update :db #(navigation/navigate-to-clean % :home))
-            (assoc :dispatch [:start-chat whisper-identity {:navigation-replace? true}]))))))
+            (assoc :dispatch-n [[:start-chat whisper-identity {:navigation-replace? true}]
+                                [:protocol/send-status-message whisper-identity :contact/request (own-info db)]]))))))
 
 (defn add-pending-contact [{:keys [db] :as fx} chat-or-whisper-id]
   (let [{:keys [chats] :contacts/keys [contacts]} db
@@ -284,10 +251,8 @@
         contact' (assoc contact
                         :address (public-key->address chat-or-whisper-id)
                         :pending? false)]
-    (-> fx
-        #_(watch-contact contact')
-        #_(discover-events/send-portions-when-contact-exists chat-or-whisper-id)
-        (add-new-contact contact'))))
+    (assoc (add-new-contact fx contact')
+           :dispatch [:protocol/send-status-message chat-or-whisper-id :contact/request-confirmed (own-info db)])))
 
 (register-handler-fx
   :add-pending-contact
@@ -307,8 +272,8 @@
   (fn [{{:accounts/keys [accounts current-account-id] :as db} :db} [_ _ contact-identity]]
     (let [current-account (get accounts current-account-id)]
       (cond-> {:db (assoc db :contacts/new-identity contact-identity)}
-              (not (new-chat.db/validate-pub-key contact-identity current-account))
-              (assoc :dispatch [:add-contact-handler])))))
+        (not (new-chat.db/validate-pub-key contact-identity current-account))
+        (assoc :dispatch [:add-contact-handler])))))
 
 (register-handler-fx
   :contact-update-received
@@ -356,8 +321,8 @@
   :hide-contact
   (fn [{:keys [db]} [_ {:keys [whisper-identity] :as contact}]]
     {::stop-watching-contact (merge
-                               (select-keys db [:web3])
-                               (select-keys contact [:whisper-identity]))
+                              (select-keys db [:web3])
+                              (select-keys contact [:whisper-identity]))
      :dispatch-n [[:update-contact! {:whisper-identity whisper-identity
                                      :pending?         true}]
                   [:account-update-keys]]}))
@@ -383,10 +348,9 @@
 (register-handler-fx
   :open-chat-with-contact
   (fn [{:keys [db]} [_ {:keys [whisper-identity dapp?] :as contact}]]
-    (-> {:db db}
-        (cond-> (when-not dapp?) (send-contact-request contact))
-        (update :db #(navigation/navigate-to-clean % :home))
-        (assoc :dispatch [:start-chat whisper-identity]))))
+    (-> {:db (navigation/navigate-to-clean db :home)} 
+        (assoc :dispatch-n [[:start-chat whisper-identity]])
+        (cond-> (when-not dapp?) (update :dispatch-n conj [:protocol/send-status-message whisper-identity :contact/request] (own-info db))))))
 
 (register-handler-fx
   :add-contact-handler
