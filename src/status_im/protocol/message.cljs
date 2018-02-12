@@ -78,6 +78,14 @@
              :payload [0 :contact/request status-message]
              :topic ping-topic #_web3.filtering/status-topic}})
 
+(defmethod send-options :contact/request-confirmed
+  [{:keys [message-type db chat-id status-message]}] 
+  {:message {:sig (:current-public-key db)
+             :pubKey chat-id
+             :ttl ttl
+             :payload [0 :contact/request status-message]
+             :topic ping-topic #_web3.filtering/status-topic}})
+
 (defmethod send-options :contact/message
   [{:keys [message-type db chat-id status-message]}] 
   {:message {:sig (:current-public-key db)
