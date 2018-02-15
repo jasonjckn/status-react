@@ -2,21 +2,17 @@
   (:refer-clojure :exclude [exists?]))
 
 (defonce messages-set (atom #{}))
-(defonce messages-map (atom {}))
 
 (defn init!
   [messages]
-  (reset! messages-set (set messages))
-  (reset! messages-map (->> messages
-                            (map (fn [{:keys [message-id type] :as message}]
-                                   [[message-id type] message]))
-                            (into {}))))
+  (reset! messages-set (set (map :message-id messages))))
 
 (defn add!
-  [{:keys [message-id type] :as message}]
-  (swap! messages-set conj message)
-  (swap! messages-map conj [[message-id type] message]))
+  [message-id]
+  (when message-id
+    (swap! messages-set conj message-id)))
 
 (defn exists?
-  [message-id type]
-  (get @messages-map [message-id type]))
+  [message-id]
+  (when message-id
+    (@messages-set message-id)))

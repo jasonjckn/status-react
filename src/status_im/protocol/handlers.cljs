@@ -12,7 +12,8 @@
             [status-im.i18n :as i18n]
             [status-im.utils.random :as random]
             [status-im.utils.async :as async-utils]
-            [status-im.protocol.message-cache :as cache]
+            [status-im.protocol.message-cache-old :as cache]
+            [status-im.protocol.message-cache :as message-cache]
             [status-im.protocol.message :as message]
             [status-im.protocol.listeners :as listeners]
             [status-im.chat.models :as models.chat]
@@ -218,6 +219,7 @@
     (let [now      (datetime/now-ms)
           messages (processed-messages/get-filtered (str "ttl > " now))]
       (cache/init! messages)
+      (message-cache/init! messages)
       (processed-messages/delete (str "ttl <=" now)))))
 
 (re-frame/reg-fx
@@ -631,16 +633,30 @@
 
 ;; Experimental `new protocol` code
 
+{1 :protocol
+ 2 :message-type
+ 3 :message-id
+ 4 :acked-messages}
+
+{1 :contact/request
+ 2 :contact/request-confirmed
+ 3 :contact/message}
+
+(def compress-whisper-message-keys (clojure.set/map-invert))
+(def message-type->whisper)
+
 (handlers/register-handler-fx
   :protocol/receive-whisper-message
   [re-frame/trim-v]
   (fn [{:keys [db]} [js-error js-message]]
-    (let [{:keys [payload sig recipientPublicKey]} (js->clj js-message :keywordize-keys true)
-          [protocol message-type status-message]   (-> payload
-                                                       web3.utils/to-utf8
-                                                       reader/read-string)]
-      ;; TODO (yenda) add logic for message-type options and protocol version handling
-      {:dispatch [:protocol/receive-status-message sig recipientPublicKey message-type status-message]})))
+    (let [{:keys [payload sig recipientPublicKey id]} (js->clj js-message :keywordize-keys true)
+          [protocol message-type ack message-id status-message] (-> payload
+                                                                    web3.utils/to-utf8
+                                                                    reader/read-string)]
+      (when-not (message-cache/exists? message-id)
+        (message-cache/add! message-id)
+        ;; TODO (yenda) add logic for message-type options and protocol version handling
+        {:dispatch [:protocol/receive-status-message sig recipientPublicKey message-type status-message]}))))
 
 (handlers/register-handler-fx
   :protocol/send-status-message
@@ -657,7 +673,7 @@
 (defn- receive-contact-request
   [{{:contacts/keys [contacts] :as db} :db :as cofx}
    public-key
-   {:keys [name profile-image address fcm-token]}] 
+   {:keys [name profile-image address fcm-token]}]
   (when-not (get contacts public-key)
     (let [contact-props {:whisper-identity public-key
                          :public-key       public-key
@@ -670,14 +686,14 @@
                          :save-contact contact-props}
           chat-props    {:name         name
                          :chat-id      public-key
-                         :contact-info (prn-str contact-props)}] 
+                         :contact-info (prn-str contact-props)}]
       (merge fx (models.chat/add-chat (assoc cofx :db (:db fx)) public-key chat-props)))))
 
 (defn- receive-contact-request-confirmation
   [{{:contacts/keys [contacts] :as db} :db :as cofx} public-key {:keys [name profile-image address fcm-token]}]
   (when-let [contact (get contacts public-key)]
     (let [contact-props {:whisper-identity public-key
-                         :address          address 
+                         :address          address
                          :photo-path       profile-image
                          :name             name
                          :fcm-token        fcm-token}
