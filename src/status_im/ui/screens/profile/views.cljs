@@ -24,7 +24,7 @@
             [status-im.utils.datetime :as time]
             [status-im.utils.config :as config]
             [status-im.utils.platform :as platform]
-            [status-im.protocol.core :as protocol]))
+            [status-im.transport.core :as transport]))
 
 (defn my-profile-toolbar []
   [toolbar/toolbar {}
@@ -228,7 +228,7 @@
 
 (defn navigate-to-accounts []
   ;; TODO(rasom): probably not the best place for this call
-  (protocol/stop-whisper!)
+  (transport/stop-whisper!)
   (re-frame/dispatch [:navigate-to :accounts]))
 
 (defn handle-logout []

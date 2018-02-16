@@ -1,10 +1,9 @@
-(ns status-im.protocol.web3.shh
+(ns status-im.transport.shh
   (:require [taoensso.timbre :as log]
             [re-frame.core :as re-frame]
             [cljs.spec.alpha :as s]
-            [status-im.protocol.validation :refer-macros [valid?]]
             [status-im.utils.handlers :as handlers]
-            [status-im.protocol.web3.utils :as web3.utils]
+            [status-im.transport.utils :as web3.utils]
             [taoensso.timbre :refer-macros [debug]]))
 
 (defn get-new-key-pair [{:keys [web3 on-success on-error]}]
@@ -41,9 +40,6 @@
                      :key-pair-id key-pair-id
                      :on-success #(re-frame/dispatch [success-event %])
                      :on-error   #(re-frame/dispatch [error-event %])})))
-
-(def status-key-password "status-key-password")
-(def status-group-key-password "status-public-group-key-password")
 
 (defn generate-sym-key-from-password
   [{:keys [web3 password on-success on-error]}]

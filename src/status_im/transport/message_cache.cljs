@@ -1,4 +1,4 @@
-(ns status-im.protocol.message-cache
+(ns status-im.transport.message-cache
   (:refer-clojure :exclude [exists?]))
 
 (defonce messages-set (atom #{}))

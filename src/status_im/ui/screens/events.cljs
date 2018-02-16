@@ -6,6 +6,7 @@
             status-im.commands.handlers.debug
             status-im.network.handlers
             status-im.protocol.handlers
+            status-im.transport.handlers
             status-im.ui.screens.accounts.events
             status-im.ui.screens.accounts.login.events
             status-im.ui.screens.accounts.recover.events

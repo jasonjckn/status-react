@@ -1,4 +1,4 @@
-(ns status-im.protocol.web3.utils
+(ns status-im.transport.utils
   (:require [cljs-time.coerce :refer [to-long]]
             [cljs-time.core :refer [now]]
             [clojure.string :as string]
@@ -12,6 +12,9 @@
 
 (defn to-utf8 [s]
   (.toUtf8 dependencies/Web3.prototype (str s)))
+
+(defn sha3 [s]
+  (.sha3 dependencies/Web3.prototype s))
 
 (defn shh [web3]
   (.-shh web3))

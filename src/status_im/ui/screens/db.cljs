@@ -159,7 +159,8 @@
                   :browser/browsers
                   :browser/options
                   :new/open-dapp
-                  :navigation/screen-params]
+                  :navigation/screen-params
+                  :transport/chats]
                  :opt-un
                  [::current-public-key
                   ::modal
