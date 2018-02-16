@@ -23,19 +23,35 @@
 
 ;; TODO (yenda) decide how to work with those. ideally the payload should be a vector of records that
 ;; implement receive
+
+
+{:chat-id-1 {:received [:id1 :id2 :id3]
+             :seen [:id1 :id2]
+             :pending [:message1 :message2]
+             :sim-key-id :key-id
+             :topic contact-topic}}
+
+
 (defrecord NewKey [password])
-(defrecord Ack [message-ids])
+
+(defrecord Received [message-ids]
+  {:db [add-timeout-to-send-message]})
+
+(defrecord Seen [message-ids]
+  {:db [add-timeout-to-send-message]})
+
 
 
 ;; TODO (yenda) decide what send should actually do
 (defrecord ContactRequest [name profile-image address fcm-token]
   message/StatusMessage
   (send [this public-key]
-    {:sig identity
-     :pubKey chat-id
-     :ttl 2000
-     :payload [this]
-     :topic contact-topic})
+    {:db (-> db
+             (assoc-in [:transport chat-id :pending] {:sig identity
+                                                      :ttl 2000
+                                                      :payload [this]
+                                                      :topic contact-topic}))
+     :dispatch [:whisper/send-messages chat-id]})
   (receive [this signature]
     (message/receive-contact-request cofx public-key payload)))
 
