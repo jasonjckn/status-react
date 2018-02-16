@@ -59,24 +59,28 @@
                                      :on-error   #(re-frame/dispatch [error-event %])})))
 
 (defn post-message
-  [{:keys [web3 message on-success on-error]}]
-  (let [message (-> message
-                    (assoc :powTarget 0.001)
-                    (assoc :powTime 1)
-                    (update :payload #(-> %
-                                          prn-str
-                                          web3.utils/from-utf8)))]
-    (.. web3
-        -shh
-        (post (clj->js message) (fn [err resp]
-                                  (if-not err
-                                    (on-success resp)
-                                    (on-error err)))))))
+  [{:keys [web3 whisper-message on-success on-error]}]
+  (.. web3
+      -shh
+      (post (clj->js whisper-message) (fn [err resp]
+                                        (if-not err
+                                          (on-success resp)
+                                          (on-error err))))))
 
 (re-frame/reg-fx
   :shh/post
-  (fn [{:keys [web3 message success-event error-event]}]
+  (fn [{:keys [web3 whisper-message success-event error-event]
+        :or {success-event :protocol/send-status-message-success
+             error-event   :protocol/send-status-message-error}}]
     (post-message {:web3       web3
-                   :message    message
+                   :whisper-message    whisper-message
                    :on-success #(re-frame/dispatch [success-event %])
                    :on-error   #(re-frame/dispatch [error-event %])})))
+
+;; TODO (yenda) do we need such a function ? How do we avoid too much repetition in message records ?
+;; TODO (yenda) where do we deal with serialization deserialization ?
+(defn prepare-whisper-message [message]
+  (-> message
+      (assoc :powTarget 0.001
+             :powTime 1)
+      (update :payload serialize)))

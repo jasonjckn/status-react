@@ -270,13 +270,11 @@
    (re-frame/inject-cofx ::get-pending-messages)
    (re-frame/inject-cofx :get-all-contacts)]
   (fn [{:keys [db web3 groups all-contacts pending-messages]} [current-account-id ethereum-rpc-url]]
-    (let [{:keys [public-key status updates-public-key
-                  updates-private-key]}
+    (let [{:keys [public-key]}
           (get-in db [:accounts/accounts current-account-id])]
       (when public-key
-        {::init-whisper {:web3 web3 :public-key public-key :groups groups :pending-messages pending-messages
-                         :updates-public-key updates-public-key :updates-private-key updates-private-key
-                         :status status :contacts all-contacts}
+        {::init-whisper {:web3 web3 :public-key public-key :groups groups
+                         :pending-messages pending-messages :contacts all-contacts}
          :db (assoc db :web3 web3
                     :rpc-url (or ethereum-rpc-url constants/ethereum-rpc-url))}))))
 
@@ -321,12 +319,3 @@
                (not (utils/network-with-upstream-rpc? networks network)))
       {:db (assoc db :sync-listening-started true)
        :dispatch [:check-sync]})))
-
-;;ERROR
-
-(handlers/register-handler-fx
-  ::post-error
-  (fn [_ [_ error]]
-    (let [android-error? (re-find (re-pattern "Failed to connect") (.-message error))]
-      (when android-error?
-        {::status-init-jail nil}))))
