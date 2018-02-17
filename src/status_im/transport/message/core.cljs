@@ -8,6 +8,23 @@
   (send [message cofx chat-id])
   (receive [message cofx chat-id signature]))
 
+;; TODO (yenda) implement
+;; :group-message
+;; :public-group-message
+;; :pending
+;; :group-invitation
+;; :update-group
+;; :add-group-identity
+;; :remove-group-identity
+;; :leave-group
+;; :contact-request
+;; :discover
+;; :discoveries-request
+;; :discoveries-response
+;; :profile
+;; :online
+
+
 ;;TODO (yenda) this is probably not the place to have these
 (defn- receive-contact-request
   [{{:contacts/keys [contacts] :as db} :db :as cofx}
