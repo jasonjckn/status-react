@@ -56,14 +56,6 @@
         (receive status-message signature message-id)))))
 
 (handlers/register-handler-fx
-  :protocol/send-status-message
-  [re-frame/trim-v]
-  (fn [{:keys [db]} [chat-id status-message]]
-    {:shh/post {:web3          (:web3 db)
-                ;;TODO (yenda) not the right place to serialize
-                :message (serialize (send status-message))}}))
-
-(handlers/register-handler-fx
   :protocol/send-status-message-success
   [re-frame/trim-v]
   (fn [{:keys [db] :as cofx} [_ resp]]

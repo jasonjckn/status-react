@@ -5,8 +5,8 @@
 (def ttl 10000)
 
 (defprotcol StatusMessage
-  (send [this identity key topic])
-  (receive [this]))
+  (send [message cofx chat-id])
+  (receive [message cofx chat-id signature]))
 
 ;;TODO (yenda) this is probably not the place to have these
 (defn- receive-contact-request
