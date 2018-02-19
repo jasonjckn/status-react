@@ -1,22 +1,25 @@
 (ns status-im.transport.core
-  (:require [status-im.transport.message :as message]
-            [re-frame.core :as re-frame]))
+  (:require [cljs.spec.alpha :as spec]
+            [re-frame.core :as re-frame]
+            [status-im.transport.message.core :as message]
+            [status-im.transport.filters :as filters]
+            [taoensso.timbre :as log]))
 
 (defn stop-whisper! []
-  (stop-watching-all!)
-  (reset-all-pending-messages!)
-  (reset-keys!))
+  #_(stop-watching-all!)
+  #_(reset-all-pending-messages!)
+  #_(reset-keys!))
 
 (defn init-whisper!
   [{:keys [identity web3
            contacts profile-keypair pending-messages]
     :as   options}]
-  {:pre [(valid? ::options options)]}
-  (debug :init-whisper)
+  #_{:pre [(spec/valid? ::options options)]}
+  (log/debug :init-whisper)
   (stop-whisper!)
 
-  (f/add-filter! web3
-                 {:privateKeyID identity
-                  :topics [message/ping-topic]}
-                 (fn [js-error js-message]
-                   (re-frame/dispatch [:protocol/receive-whisper-message js-error js-message]))))
+  (filters/add-filter! web3
+                       {:privateKeyID identity
+                        :topics [message/ping-topic]}
+                       (fn [js-error js-message]
+                         (re-frame/dispatch [:protocol/receive-whisper-message js-error js-message]))))

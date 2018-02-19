@@ -1,5 +1,6 @@
 (ns status-im.transport.handlers
   (:require [re-frame.core :as re-frame]
+            [cognitect.transit :as transit]
             [status-im.utils.handlers :as handlers]
             [status-im.transport.message-cache :as message-cache]
             [status-im.transport.message.core :as message]
@@ -12,7 +13,8 @@
 
 (re-frame/reg-fx
   :stop-whisper
-  (fn [] (protocol/stop-whisper!)))
+  (fn []
+    (transport/stop-whisper!)))
 
 (re-frame/reg-fx
   ::init-whisper
@@ -32,7 +34,7 @@
 (defn get-message-id [status-message]
   (web3.utils/sha3 status-message))
 
-(defn parse-payload [message]
+(defn parse-payload [js-message]
   (let [{:keys [payload sig]} (js->clj js-message :keywordize-keys true)
         status-message        (-> payload
                                   web3.utils/to-utf8)]
@@ -53,7 +55,7 @@
                                                                 parse-payload
                                                                 deduplication)]
       (when (and signature status-message message-id)
-        (receive status-message signature message-id)))))
+        (message/receive status-message signature message-id)))))
 
 (handlers/register-handler-fx
   :protocol/send-status-message-success

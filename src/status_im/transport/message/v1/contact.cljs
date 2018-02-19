@@ -19,15 +19,15 @@
     (-> cofx
         (protocol/requires-ack chat-id)
         (protocol/send chat-id message))
-  (receive [this signature]
-    (protocol/receive db message #{:ack})
+  (receive [this cofx chat-id signature]
+    (protocol/receive db  #{:ack})
     (message/receive-contact-request-confirmation cofx signature)))
 
 (defrecord ContactMessage [content]
   message/StatusMessage
   (send [message db chat-id]
     (protocol/send db message #{:ack}))
-  (receive [message db chat-id signature]
+  (receive [this cofx chat-id signature]
     {:dispatch [:pre-received-message (assoc payload
                                              :chat-id chat-id
                                              :from    signature)]}))

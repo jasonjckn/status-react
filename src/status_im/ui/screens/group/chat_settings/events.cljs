@@ -1,7 +1,6 @@
 (ns status-im.ui.screens.group.chat-settings.events
   (:require [re-frame.core :refer [dispatch reg-fx]]
-            [status-im.utils.handlers :refer [register-handler-fx]]
-            [status-im.protocol.core :as protocol]
+            [status-im.utils.handlers :refer [register-handler-fx]] 
             [status-im.utils.random :as random] 
             [status-im.data-store.contacts :as contacts]
             [status-im.data-store.messages :as messages]
@@ -50,7 +49,7 @@
   ::notify-about-new-members
   (fn [{:keys [current-chat-id selected-participants
                current-public-key chats web3]}]
-    (let [{:keys [name contacts]} (chats current-chat-id)
+    #_(let [{:keys [name contacts]} (chats current-chat-id)
           identities    (map :identity contacts)
 
           {:keys [public private]
@@ -90,7 +89,7 @@
 (reg-fx
   ::notify-about-removing
   (fn [{:keys [web3 current-chat-id participants chats current-public-key]}]
-    (let [{:keys [private public] :as new-keypair} (protocol/new-keypair!)
+    #_(let [{:keys [private public] :as new-keypair} (protocol/new-keypair!)
           {:keys [name private-key public-key]
            :as   chat} (get chats current-chat-id)
           old-keypair {:private private-key

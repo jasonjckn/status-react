@@ -6,16 +6,6 @@
 
 (defonce filters (atom {}))
 
-;; NOTE(oskarth): Due to perf we don't want a single topic for all messages,
-;; instead we want many. We need a way for user A and B to agree on which topics
-;; to use. By using first 10 characters of the pub-key, we construct a topic
-;; that requires no coordination for 1-1 chats.
-(defn identity->topic [identity]
-  (apply str (take 10 identity)))
-
-(defn get-topics [& [identity]]
-  [status-topic])
-
 (defn remove-filter! [web3 options]
   (when-let [filter (get-in @filters [web3 options])]
     (.stopWatching filter
@@ -29,7 +19,7 @@
   [web3 options callback]
   (let [filter   (.newMessageFilter (utils/shh web3) (clj->js options)
                                     callback
-                                    #(log/warn :add-filter-error (.stringify js/JSON (clj->js options')) %))]
+                                    #(log/warn :add-filter-error (.stringify js/JSON (clj->js options)) %))]
     (swap! filters assoc-in [web3 options] filter)))
 
 (defn add-filter!

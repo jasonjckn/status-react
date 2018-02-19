@@ -2,8 +2,7 @@
   (:require [re-frame.core :refer [dispatch trim-v reg-fx reg-cofx inject-cofx]]
             [status-im.utils.handlers :refer [register-handler-db register-handler-fx]]
             [status-im.data-store.contacts :as contacts]
-            [clojure.string :as s]
-            [status-im.protocol.core :as protocol] 
+            [clojure.string :as s] 
             [status-im.utils.utils :refer [http-post]]
             [status-im.utils.random :as random]
             [taoensso.timbre :as log]
@@ -42,7 +41,7 @@
 (reg-fx
   ::watch-contact
   (fn [{:keys [web3 whisper-identity public-key private-key]}]
-    (protocol/watch-user! {:web3     web3
+    #_(protocol/watch-user! {:web3     web3
                            :identity whisper-identity
                            :keypair  {:public  public-key
                                       :private private-key}
@@ -51,13 +50,13 @@
 (reg-fx
   ::stop-watching-contact
   (fn [{:keys [web3 whisper-identity]}]
-    (protocol/stop-watching-user! {:web3     web3
+    #_(protocol/stop-watching-user! {:web3     web3
                                    :identity whisper-identity})))
 
 (reg-fx
   ::reset-pending-messages
   (fn [from]
-    (protocol/reset-pending-messages! from)))
+    #_(protocol/reset-pending-messages! from)))
 
 (reg-fx
   :save-contact

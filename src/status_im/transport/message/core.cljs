@@ -1,10 +1,12 @@
-(ns status-im.transport.message.core)
+(ns status-im.transport.message.core
+  (:require [status-im.chat.models :as models.chat]))
 
 (def ping-topic "0x01010202")
 
 (def ttl 10000)
 
-(defprotcol StatusMessage
+(defprotocol StatusMessage
+  "Protocol for transport layed status messages"
   (send [message cofx chat-id])
   (receive [message cofx chat-id signature]))
 
