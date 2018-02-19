@@ -18,8 +18,7 @@
             [status-im.ui.screens.discover.events :as discover-events]
             [status-im.chat.console :as console-chat]
             [status-im.commands.events.loading :as loading-events]
-            [cljs.spec.alpha :as spec]
-            [status-im.protocol.web3.utils :as web3.utils]
+            [cljs.spec.alpha :as spec] 
             [status-im.ui.screens.add-new.new-chat.db :as new-chat.db]
             [clojure.string :as string]))
 ;;;; COFX

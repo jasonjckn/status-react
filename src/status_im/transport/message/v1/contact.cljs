@@ -4,30 +4,35 @@
 
 (defrecord ContactRequest [name profile-image address fcm-token]
   message/StatusMessage
-  (send [message cofx chat-id]
+  (send [this cofx chat-id]
     (-> cofx
-        (protocol/requires-ack chat-id)
-        (protocol/generate-new-key-and-password chat-id)))
-  (receive [message cofx chat-id signature]
-    (-> cofx
-        (protocol/ack chat-id message-id)
-        (message/receive-contact-request public-key payload))))
+        (protocol/generate-new-key-and-password chat-id)
+        (protocol/send this))
+    #_(-> cofx
+          (protocol/requires-ack chat-id)
+          (protocol/generate-new-key-and-password chat-id)))
+  (receive [this cofx chat-id signature]
+    (message/receive-contact-request cofx signature this)
+    #_(-> cofx
+          (protocol/ack chat-id message-id)
+          (message/receive-contact-request signature payload))))
 
 (defrecord ContactRequestConfirmed [name profile-image address fcm-token]
   message/StatusMessage
-  (send [message cofx chat-id]
-    (-> cofx
-        (protocol/requires-ack chat-id)
-        (protocol/send chat-id message))
+  (send [this cofx chat-id]
+    (protocol/send cofx this)
+    #_(-> cofx
+          (protocol/requires-ack chat-id)
+          (protocol/send chat-id this)))
   (receive [this cofx chat-id signature]
-    (protocol/receive db  #{:ack})
-    (message/receive-contact-request-confirmation cofx signature)))
+    #_(protocol/receive db #{:ack})
+    (message/receive-contact-request-confirmation cofx signature this)))
 
 (defrecord ContactMessage [content]
   message/StatusMessage
-  (send [message db chat-id]
-    (protocol/send db message #{:ack}))
+  (send [this cofx chat-id]
+    (protocol/send cofx this))
   (receive [this cofx chat-id signature]
-    {:dispatch [:pre-received-message (assoc payload
+    {:dispatch [:pre-received-message (assoc content
                                              :chat-id chat-id
                                              :from    signature)]}))

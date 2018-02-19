@@ -7,8 +7,8 @@
 
 (defprotocol StatusMessage
   "Protocol for transport layed status messages"
-  (send [message cofx chat-id])
-  (receive [message cofx chat-id signature]))
+  (send [this cofx chat-id])
+  (receive [this cofx chat-id signature]))
 
 ;; TODO (yenda) implement
 ;; :group-message

@@ -50,12 +50,12 @@
 (handlers/register-handler-fx
   :protocol/receive-whisper-message
   [re-frame/trim-v]
-  (fn [{:keys [db]} [js-error js-message]]
+  (fn [cofx [js-error js-message]]
     (let [{:keys [signature status-message message-id]} (some-> js-message
                                                                 parse-payload
                                                                 deduplication)]
       (when (and signature status-message message-id)
-        (message/receive status-message signature message-id)))))
+        (message/receive (assoc status-message :message-id message-id) cofx nil signature)))))
 
 (handlers/register-handler-fx
   :protocol/send-status-message-success

@@ -5,7 +5,7 @@
 (defn get-topic [chat-id]
   (subs (web3.utils/sha3 chat-id) 0 10))
 
-(defn send [db {:keys [payload chat-id]}]
+(defn send [{:keys [db]} {:keys [payload chat-id]}]
   ;; we assume that the chat contains the contact public-key
   (let [{:accounts/keys [account]} db
         {:keys [identity]} account
@@ -17,7 +17,7 @@
                           :payload (serialize payload)
                           :topic (get-topic chat-id)}}}))
 
-(defn send-with-pubkey [db {:keys [payload chat-id]}]
+(defn send-with-pubkey [{:keys [db]} {:keys [payload chat-id]}]
   {:shh/post {:web3    (:web3 db)
               :message {:sig identity
                         :pubKey public-key
