@@ -1,6 +1,8 @@
 (ns status-im.transport.message.v1.protocol
   (:require [status-im.transport.utils :as transport.utils]
-            [status-im.transport.message-cache :as message-cache]))
+            [status-im.transport.message-cache :as message-cache]
+            [status-im.transport.db :as transport.db]
+            [status-im.transport.core :as transport]))
 
 (def ttl (* 3600 1000)) ;; ttl of one hour
 
@@ -9,6 +11,9 @@
 
 (defn get-topic [chat-id]
   (subs (transport.utils/sha3 chat-id) 0 10))
+
+(defn init-chat [cofx chat-id]
+  (assoc-in cofx [:transport/chats chat-id] (transport.db/create-chat (get-topic chat-id))))
 
 (defn is-new? [message-id]
   (when-not (message-cache/exists? message-id)

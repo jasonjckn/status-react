@@ -21,6 +21,7 @@
     (let [{:keys [web3]} (:db cofx)
           message-id (protocol/message-id message)]
       (-> cofx
+          (protocol/init-chat chat-id)
           (protocol/requires-ack message-id)
           {:shh/get-new-sym-key {:web3 web3
                                  :chat-id chat-id
@@ -41,6 +42,7 @@
     (let [message-id (protocol/message-id this)]
       (when (protocol/is-new? message-id)
         (-> cofx
+            (protocol/init-chat chat-id)
             (protocol/ack message-id chat-id)
             (message/receive-contact-request-confirmation signature this))))))
 
