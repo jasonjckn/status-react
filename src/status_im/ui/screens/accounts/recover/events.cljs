@@ -38,9 +38,7 @@
           account {:public-key          public-key
                    :address             address
                    :name                (generate-gfy public-key)
-                   :photo-path          (identicon public-key)
-                   :updates-public-key  public
-                   :updates-private-key private
+                   :photo-path          (identicon public-key) 
                    :signed-up?          true
                    :signing-phrase      phrase}]
       (log/debug "account-recovered")

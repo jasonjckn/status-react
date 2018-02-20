@@ -11,8 +11,6 @@
 (spec/def :account/email nil?)
 (spec/def :account/signed-up? (spec/nilable boolean?))
 (spec/def :account/last-updated (spec/nilable int?))
-(spec/def :account/updates-private-key :global/not-empty-string)
-(spec/def :account/updates-public-key :global/not-empty-string)
 (spec/def :account/photo-path (spec/nilable string?))
 (spec/def :account/debug? (spec/nilable boolean?))
 (spec/def :account/status (spec/nilable string?))
@@ -25,8 +23,7 @@
 (spec/def :accounts/account (allowed-keys
                               :req-un [:account/name :account/address :account/public-key
                                        :account/photo-path :account/signing-phrase]
-                              :opt-un [:account/debug? :account/status :account/last-updated
-                                       :account/updates-private-key :account/updates-public-key
+                              :opt-un [:account/debug? :account/status :account/last-updated 
                                        :account/email :account/signed-up? :account/network
                                        :account/networks :account/settings :account/wnode]))
 

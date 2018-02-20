@@ -63,8 +63,8 @@
 
 (re-frame/reg-fx
   ::broadcast-account-update
-  (fn [{:keys [current-public-key web3 name photo-path status
-               updates-public-key updates-private-key]}]
+  (fn [{:keys [name photo-path status]}]
+    ;;TODO janherich - figure out how to do it in new protocol
     #_(when web3
         (protocol/broadcast-profile!
          {:web3    web3
@@ -76,18 +76,6 @@
                                            :status        status
                                            :profile-image photo-path}}}}))))
 
-(re-frame/reg-fx
-  ::send-keys-update
-  (fn [{:keys [web3 current-public-key contacts
-               updates-public-key updates-private-key]}]
-    #_(doseq [id (handlers/identities contacts)]
-        (protocol/update-keys!
-         {:web3    web3
-          :message {:from       current-public-key
-                    :to         id
-                    :message-id (random/id)
-                    :payload    {:keypair {:public  updates-public-key
-                                           :private updates-private-key}}}}))))
 ;;;; Handlers
 
 (defn add-account
@@ -116,9 +104,7 @@
                               :address             normalized-address
                               :name                (generate-gfy pubkey)
                               :status              status
-                              :signed-up?          true
-                              :updates-public-key  "public"
-                              :updates-private-key "private"
+                              :signed-up?          true 
                               :photo-path          (identicon pubkey)
                               :signing-phrase      signing-phrase
                               :settings            {:wallet {:visible-tokens {:testnet #{:STT} :mainnet #{:SNT}}}}}]
@@ -172,26 +158,7 @@
     (-> fx
         (assoc-in [:db :accounts/accounts current-account-id] new-account)
         (assoc ::save-account new-account
-               ::broadcast-account-update (merge (select-keys db [:current-public-key :web3])
-                                                 (select-keys new-account [:name :photo-path :status
-                                                                           :updates-public-key :updates-private-key]))))))
-
-(handlers/register-handler-fx
-  :account-update-keys
-  [(re-frame/inject-cofx :get-new-keypair!)]
-  (fn [{:keys [db keypair now]} _]
-    (let [{:accounts/keys [accounts current-account-id]} db
-          {:keys [public private]} keypair
-          current-account (get accounts current-account-id)
-          new-account     (merge current-account {:updates-public-key  public
-                                                  :updates-private-key private
-                                                  :last-updated        now})]
-      {:db                (assoc-in db [:accounts/accounts current-account-id] new-account)
-       ::save-account     new-account
-       ::send-keys-update (merge
-                           (select-keys db [:web3 :current-public-key :contacts])
-                           (select-keys new-account [:updates-public-key
-                                                     :updates-private-key]))})))
+               ::broadcast-account-update (select-keys new-account [:name :photo-path :status])))))
 
 (handlers/register-handler-fx
   :send-account-update-if-needed

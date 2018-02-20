@@ -326,9 +326,8 @@
     {::stop-watching-contact (merge
                               (select-keys db [:web3])
                               (select-keys contact [:whisper-identity]))
-     :dispatch-n [[:update-contact! {:whisper-identity whisper-identity
-                                     :pending?         true}]
-                  [:account-update-keys]]}))
+     :dispatch [:update-contact! {:whisper-identity whisper-identity
+                                  :pending?         true}]}))
 
 ;;used only by status-dev-cli
 (register-handler-fx
