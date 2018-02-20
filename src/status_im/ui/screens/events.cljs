@@ -24,7 +24,6 @@
             status-im.ui.screens.wallet.transactions.events
             status-im.ui.screens.wallet.choose-recipient.events
             status-im.ui.screens.browser.events
-            status-im.ui.screens.add-new.open-dapp.events
             status-im.ui.screens.offline-messaging-settings.events
             [re-frame.core :as re-frame]
             [status-im.native-module.core :as status]
@@ -406,3 +405,10 @@
   :request-permissions
   (fn [_ [_ permissions then else]]
     {::request-permissions-fx [permissions then else]}))
+
+(handlers/register-handler-db
+  :set-swipe-position
+  [re-frame/trim-v]
+  (fn [db [item-id value]]
+    (-> db
+      (assoc-in [:chat-animations item-id :delete-swiped] value))))

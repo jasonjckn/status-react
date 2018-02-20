@@ -161,14 +161,6 @@
     (.then clipboard-contents #(clbk %))))
 
 
-;; Emoji
-
-(def emoji-picker-class js-dependencies/emoji-picker)
-
-(def emoji-picker
-  (let [emoji-picker (.-default emoji-picker-class)]
-    (reagent/adapt-react-class emoji-picker)))
-
 ;; Autolink
 
 (def autolink-class (reagent/adapt-react-class (.-default js-dependencies/autolink)))
@@ -197,9 +189,8 @@
                             (if (or (nil? timeout)
                                     (> 100 timeout))
                               (reset! loading false)
-                              (utils/set-timeout (fn []
-                                               (reset! loading false))
-                                             timeout)))}
+                              (utils/set-timeout #(reset! loading false)
+                                                 timeout)))}
     (if (and (not enabled?) @loading)
       (or preview
           [view {:style (or style {:justify-content :center

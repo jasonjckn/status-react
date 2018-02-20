@@ -16,7 +16,7 @@
     (transport/stop-whisper!)))
 
 (re-frame/reg-fx
-  ::init-whisper
+  :transport/init-whisper
   (fn [{:keys [web3 public-key groups status contacts pending-messages]}]
     (transport/init-whisper!
      {:web3                        web3

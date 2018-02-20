@@ -3,6 +3,8 @@
   (:require [status-im.ui.components.styles :as component.styles]
             [status-im.ui.components.colors :as colors]))
 
+(def delete-button-width 100)
+
 (defn toolbar []
   {:background-color colors/white})
 
@@ -15,7 +17,7 @@
    :background-color colors/white
    :android          {:height 76}
    :ios              {:height 74}
-   :overflow         "hidden"})
+   :overflow         :hidden})
 
 (defstyle chat-icon-container
   {:padding-top    18
@@ -30,7 +32,7 @@
   {:width            40
    :height           40
    :border-radius    20
-   :background-color colors/light-gray
+   :background-color colors/gray-lighter
    :align-items      :center
    :justify-content  :center})
 
@@ -135,23 +137,14 @@
    :android    {:top 2}
    :ios        {:top 3}})
 
-(def chats-container
+(def container
   {:flex 1})
 
-(defstyle list-container
-  {:android {:background-color colors/light-gray}
-   :ios     {:background-color colors/white}})
+(def native-button-offset 16)
 
 (def toolbar-actions
   {:flex-direction :row
    :padding-right  14})
-
-(def opts-btn-container
-  {:align-items     :center
-   :justify-content :center})
-
-(def opts-btn
-  {:padding 16})
 
 (def create-icon
   {:fontSize 20
@@ -164,3 +157,17 @@
    :width        14
    :height       9
    :tint-color   :white})
+
+(def delete-icon-highlight
+  {:position         :absolute
+   :top              0
+   :bottom           0
+   :right            -800
+   :width            800
+   :background-color colors/light-red})
+
+(def delete-icon-container
+  {:flex            1
+   :width           delete-button-width
+   :justify-content :center
+   :align-items     :center})

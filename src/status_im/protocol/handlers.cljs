@@ -272,8 +272,8 @@
     (let [{:keys [public-key]}
           (get-in db [:accounts/accounts current-account-id])]
       (when public-key
-        {::init-whisper {:web3 web3 :public-key public-key :groups groups
-                         :pending-messages pending-messages :contacts all-contacts}
+        {:transport/init-whisper {:web3 web3 :public-key public-key :groups groups
+                                  :pending-messages pending-messages :contacts all-contacts}
          :db (assoc db :web3 web3
                     :rpc-url (or ethereum-rpc-url constants/ethereum-rpc-url))}))))
 

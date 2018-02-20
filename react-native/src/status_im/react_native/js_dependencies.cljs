@@ -6,7 +6,6 @@
 (def config                 (js/require "react-native-config"))
 (def dialogs                (js/require "react-native-dialogs"))
 (def dismiss-keyboard       (js/require "dismissKeyboard"))
-(def emoji-picker           (js/require "react-native-emoji-picker"))
 (def fs                     (js/require "react-native-fs"))
 (def http-bridge            (js/require "react-native-http-bridge"))
 ;; i18n is now exported in default object of the module
@@ -22,7 +21,6 @@
 (def random-bytes           (js/require "react-native-randombytes"))
 (def react-native           (js/require "react-native"))
 (def realm                  (js/require "realm"))
-(def sortable-listview      (js/require "react-native-sortable-listview"))
 (def vector-icons           (js/require "react-native-vector-icons/Ionicons"))
 (def webview-bridge         (js/require "react-native-webview-bridge"))
 (def svg                    (js/require "react-native-svg"))

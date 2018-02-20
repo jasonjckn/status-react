@@ -86,6 +86,7 @@
 
    ;;profile
    :profile                               "Profile"
+   :view-profile                          "View profile"
    :edit-profile                          "Edit profile"
    :main-currency                         "Main currency"
    :message                               "Message"
@@ -149,6 +150,7 @@
    :invite-friends                        "Invite friends"
    :chats                                 "Chats"
    :delete-chat                           "Delete chat"
+   :group-chat                            "Group chat"
    :new-group-chat                        "New group chat"
    :new-public-group-chat                 "Join public chat"
    :edit-chats                            "Edit chats"
@@ -156,6 +158,7 @@
    :empty-topic                           "Empty topic"
    :topic-format                          "Wrong format [a-z0-9\\-]+"
    :public-group-topic                    "Topic"
+   :set-a-topic                           "Set a topic"
 
    ;;discover
    :discover                              "Discover"
@@ -199,10 +202,12 @@
    ;;group-settings
    :remove                                "Remove"
    :save                                  "Save"
+   :create                                "Create"
    :delete                                "Delete"
    :clear-history                         "Clear history"
    :mute-notifications                    "Mute notifications"
    :leave-chat                            "Leave chat"
+   :leave-group-chat                      "Leave group chat"
    :chat-settings                         "Chat settings"
    :edit                                  "Edit"
    :add-members                           "Add members"
