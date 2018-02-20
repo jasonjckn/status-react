@@ -110,14 +110,14 @@
 
 (re-frame/reg-fx
   :shh/add-new-sym-key
-  (fn [{:keys [web3 sym-key message success-event]}]
-    (shh/add-sym-key {:web3       web3
-                      :sym-key    sym-key
-                      :on-success (fn [sym-key-id]
-                                    (re-frame/dispatch [success-event {:chat-id chat-id
-                                                                       :message message
-                                                                       :sym-key-id sym-key-id}]))
-                      :on-error log-error})))
+  (fn [{:keys [web3 sym-key chat-id message success-event]}]
+    (add-sym-key {:web3       web3
+                  :sym-key    sym-key
+                  :on-success (fn [sym-key-id]
+                                (re-frame/dispatch [success-event {:chat-id chat-id
+                                                                   :message message
+                                                                   :sym-key-id sym-key-id}]))
+                  :on-error log-error})))
 
 (re-frame/reg-fx
   :shh/get-new-sym-key
@@ -125,7 +125,7 @@
     (new-sym-key {:web3       web3
                   :on-success (fn [sym-key-id]
                                 (get-sym-key {:web3 web3
-                                              :sym-key-id %
+                                              :sym-key-id sym-key-id
                                               :on-success (fn [sym-key]
                                                             (re-frame/dispatch [success-event {:chat-id chat-id
                                                                                                :message message
