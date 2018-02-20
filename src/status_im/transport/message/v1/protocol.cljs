@@ -14,7 +14,7 @@
   (subs (transport.utils/sha3 chat-id) 0 10))
 
 (defn init-chat [cofx chat-id]
-  (assoc-in cofx [:transport/chats chat-id] (transport.db/create-chat (get-topic chat-id))))
+  (assoc-in cofx [:db :transport/chats chat-id] (transport.db/create-chat (get-topic chat-id))))
 
 (defn is-new? [message-id]
   (when-not (message-cache/exists? message-id)

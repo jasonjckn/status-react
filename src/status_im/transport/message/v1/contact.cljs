@@ -25,10 +25,10 @@
       (-> cofx
           (protocol/init-chat chat-id)
           (protocol/requires-ack message-id chat-id)
-          {:shh/get-new-sym-key {:web3 web3
-                                 :chat-id chat-id
-                                 :message this
-                                 :on-success ::send-new-sym-key}})))
+          (assoc :shh/get-new-sym-key {:web3 web3
+                                       :chat-id chat-id
+                                       :message this
+                                       :on-success ::send-new-sym-key}))))
   (receive [this {:keys [db] :as cofx} chat-id signature]
     (let [message-id (protocol/message-id this)]
       (when (protocol/is-new? message-id)
@@ -63,9 +63,8 @@
 (handlers/register-handler-fx
   ::send-new-sym-key
   (fn [{:keys [db]} [_ {:keys [chat-id message sym-key sym-key-id]}]]
-    (let [cofx {:db (assoc-in db [:transport/chats chat-id :sym-key-id] sym-key-id)}
-          new-contact-key-message (NewContactKey. sym-key message)]
-      (message/send new-contact-key-message cofx chat-id))))
+    (let [cofx {:db (assoc-in db [:transport/chats chat-id :sym-key-id] sym-key-id)}]
+      (message/send (NewContactKey. sym-key message) cofx chat-id))))
 
 (handlers/register-handler-fx
   ::add-new-sym-key
