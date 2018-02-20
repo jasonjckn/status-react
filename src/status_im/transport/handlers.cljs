@@ -1,5 +1,5 @@
 (ns status-im.transport.handlers
-  (:require [re-frame.core :as re-frame] 
+  (:require [re-frame.core :as re-frame]
             [status-im.utils.handlers :as handlers]
             [status-im.transport.message.core :as message]
             [status-im.transport.core :as transport]
@@ -16,7 +16,7 @@
     (transport/stop-whisper!)))
 
 (re-frame/reg-fx
-  ::init-whisper
+  :transport/init-whisper
   (fn [{:keys [web3 public-key groups status contacts pending-messages]}]
     (transport/init-whisper!
      {:web3                        web3
