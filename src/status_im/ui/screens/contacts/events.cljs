@@ -2,7 +2,7 @@
   (:require [re-frame.core :refer [dispatch trim-v reg-fx reg-cofx inject-cofx]]
             [status-im.utils.handlers :refer [register-handler-db register-handler-fx]]
             [status-im.data-store.contacts :as contacts]
-            [clojure.string :as s] 
+            [clojure.string :as s]
             [status-im.utils.utils :refer [http-post]]
             [status-im.utils.random :as random]
             [taoensso.timbre :as log]
@@ -18,7 +18,9 @@
             [status-im.ui.screens.discover.events :as discover-events]
             [status-im.chat.console :as console-chat]
             [status-im.commands.events.loading :as loading-events]
-            [cljs.spec.alpha :as spec] 
+            [status-im.transport.message.core :as transport]
+            [status-im.transport.message.v1.contact :as transport-contact]
+            [cljs.spec.alpha :as spec]
             [status-im.ui.screens.add-new.new-chat.db :as new-chat.db]
             [clojure.string :as string]))
 ;;;; COFX
@@ -41,16 +43,16 @@
   ::watch-contact
   (fn [{:keys [web3 whisper-identity public-key private-key]}]
     #_(protocol/watch-user! {:web3     web3
-                           :identity whisper-identity
-                           :keypair  {:public  public-key
-                                      :private private-key}
-                           :callback #(dispatch [:incoming-message %1 %2])})))
+                             :identity whisper-identity
+                             :keypair  {:public  public-key
+                                        :private private-key}
+                             :callback #(dispatch [:incoming-message %1 %2])})))
 
 (reg-fx
   ::stop-watching-contact
   (fn [{:keys [web3 whisper-identity]}]
     #_(protocol/stop-watching-user! {:web3     web3
-                                   :identity whisper-identity})))
+                                     :identity whisper-identity})))
 
 (reg-fx
   ::reset-pending-messages
@@ -216,6 +218,12 @@
             :contacts/click-handler
             :contacts/click-action)))
 
+(defn- add-new-contact [db {:keys [whisper-identity] :as contact}]
+  {:db          (-> db
+                    (update-in [:contacts/contacts whisper-identity] merge contact)
+                    (assoc-in [:contacts/new-identity] ""))
+   :save-contact contact})
+
 (defn- own-info [{:accounts/keys [accounts current-account-id] :as db}]
   (let [{:keys [name photo-path address]} (get accounts current-account-id)
         fcm-token (get-in db [:notifications :fcm-token])]
@@ -224,44 +232,41 @@
      :address       address
      :fcm-token     fcm-token}))
 
-(defn- add-new-contact [fx {:keys [whisper-identity] :as contact}]
-  (-> fx
-      (update-in [:db :contacts/contacts whisper-identity] merge contact)
-      (assoc-in  [:db :contacts/new-identity] "")
-      (assoc :save-contact contact)))
+(defn- send-contact-request [{:keys [db] :as cofx} chat-id]
+  (transport/send (transport-contact/map->ContactRequest (own-info db)) cofx chat-id))
+
+(defn- send-contact-request-confirmation [{:keys [db] :as cofx} chat-id]
+  (transport/send (transport-contact/map->ContactRequestConfirmed (own-info db)) cofx chat-id))
 
 (register-handler-fx
   :add-new-contact-and-open-chat
-  (fn [{:keys [db]} [_ {:keys [whisper-identity] :as contact}]]
+  (fn [{:keys [db] :as cofx} [_ {:keys [whisper-identity] :as contact}]]
     (when-not (get-in db [:contacts/contacts whisper-identity])
-      (let [contact (assoc contact :address (public-key->address whisper-identity))]
-        (-> {:db db}
-            (add-new-contact contact)
-            (update :db #(navigation/navigate-to-clean % :home))
-            (assoc :dispatch-n [[:start-chat whisper-identity {:navigation-replace? true}]
-                                [:protocol/send-status-message whisper-identity :contact/request (own-info db)]]))))))
+      (let [contact (assoc contact :address (public-key->address whisper-identity))
+            fx (-> (navigation/navigate-to-clean db :home)
+                   (add-new-contact contact)
+                   (assoc :dispatch [:start-chat whisper-identity {:navigation-replace? true}]))]
+        (merge fx (send-contact-request (assoc cofx :db (:fx db)) whisper-identity))))))
 
-(defn add-pending-contact [{:keys [db] :as fx} chat-or-whisper-id]
+(defn add-pending-contact [{:keys [db] :as cofx} chat-or-whisper-id]
   (let [{:keys [chats] :contacts/keys [contacts]} db
-        contact (if-let [contact-info (get-in chats [chat-or-whisper-id :contact-info])]
-                  (read-string contact-info)
-                  (get contacts chat-or-whisper-id))
-        contact' (assoc contact
-                        :address (public-key->address chat-or-whisper-id)
-                        :pending? false)]
-    (assoc (add-new-contact fx contact')
-           :dispatch [:protocol/send-status-message chat-or-whisper-id :contact/request-confirmed (own-info db)])))
+        contact (-> (if-let [contact-info (get-in chats [chat-or-whisper-id :contact-info])]
+                      (read-string contact-info)
+                      (get contacts chat-or-whisper-id))
+                    (assoc :address  (public-key->address chat-or-whisper-id)
+                           :pending? false))
+        fx      (add-new-contact db contact)]
+    (merge fx (send-contact-request-confirmation (assoc cofx :db (:fx db)) chat-or-whisper-id))))
 
 (register-handler-fx
   :add-pending-contact
-  (fn [{:keys [db]} [_ chat-or-whisper-id]]
-    (add-pending-contact {:db db} chat-or-whisper-id)))
+  (fn [cofx [_ chat-or-whisper-id]]
+    (add-pending-contact cofx chat-or-whisper-id)))
 
 (register-handler-fx
   :add-pending-contact-and-open-chat
-  (fn [{:keys [db]} [_ whisper-id]]
-    (-> {:db db}
-        (add-pending-contact whisper-id)
+  (fn [cofx [_ whisper-id]]
+    (-> (add-pending-contact cofx whisper-id)
         (update :db #(navigation/navigate-to-clean % :home))
         (assoc :dispatch [:start-chat whisper-id {:navigation-replace? true}]))))
 
@@ -345,10 +350,12 @@
 
 (register-handler-fx
   :open-chat-with-contact
-  (fn [{:keys [db]} [_ {:keys [whisper-identity dapp?] :as contact}]]
-    (-> {:db (navigation/navigate-to-clean db :home)} 
-        (assoc :dispatch-n [[:start-chat whisper-identity]])
-        (cond-> (when-not dapp?) (update :dispatch-n conj [:protocol/send-status-message whisper-identity :contact/request] (own-info db))))))
+  (fn [{:keys [db] :as cofx} [_ {:keys [whisper-identity dapp?] :as contact}]]
+    (-> {:db         (navigation/navigate-to-clean db :home)
+         :dispatch-n [[:start-chat whisper-identity]]}
+        (cond-> (when-not dapp?)
+          (as-> fx
+              (merge fx (send-contact-request-confirmation (assoc cofx :db (:fx db)) whisper-identity)))))))
 
 (register-handler-fx
   :add-contact-handler

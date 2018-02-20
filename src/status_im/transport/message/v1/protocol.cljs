@@ -60,4 +60,4 @@
 (defrecord Seen [message-ids]
   message/StatusMessage
   (send [this cofx chat-id])
-  (receive [this cofx chat0id sig]))
+  (receive [this cofx chat-id sig]))

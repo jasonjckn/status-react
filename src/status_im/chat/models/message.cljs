@@ -1,13 +1,15 @@
 (ns status-im.chat.models.message
   (:require [re-frame.core :as re-frame]
-            [status-im.constants :as constants] 
+            [status-im.constants :as constants]
             [status-im.chat.events.console :as console-events]
             [status-im.chat.events.requests :as requests-events]
             [status-im.chat.models :as chat-model]
             [status-im.chat.models.commands :as commands-model]
             [status-im.utils.datetime :as datetime-utils]
             [status-im.utils.clocks :as clocks-utils]
-            [status-im.utils.random :as random]))
+            [status-im.utils.random :as random]
+            [status-im.transport.message.core :as transport]
+            [status-im.transport.message.v1.contact :as transport-contact]))
 
 (defn- get-current-account
   [{:accounts/keys [accounts current-account-id]}]
@@ -161,7 +163,7 @@
                      payload)]
       (assoc message' :payload payload))))
 
-(defn- generate-new-protocol-message [{:keys [command message]}] 
+(defn- generate-new-protocol-message [{:keys [command message]}]
   (-> (or command message)
       (select-keys [:message-id :content :content-type :clock-value])
       (assoc :timestamp (datetime-utils/now-ms))))
@@ -218,17 +220,19 @@
       (not group-chat)
       (assoc :to chat-id :message-type :user-message))))
 
-(defn send-message [{{:keys [network-status] :as db} :db
-                     :keys                           [now]}
+(defn- send-contact-message [cofx chat-id message]
+  (when-not (get-in cofx [:db :contacts/contacts chat-id :dapp?])
+    (transport/send (transport-contact/->ContactMessage message) cofx chat-id)))
+
+(defn send-message [{{:keys [network-status] :as db} :db :as cofx}
                     {:keys [chat-id] :as params}]
   (let [chat    (get-in db [:chats chat-id])
         message (prepare-message params chat)
         params' (assoc params :message message)
-        fx      {:db                      (add-message-to-db db chat-id message true) 
-                 :save-message            message}]
-    (-> (merge fx (chat-model/upsert-chat (assoc fx :now now)
-                                          {:chat-id chat-id}))
-        (assoc :dispatch [:protocol/send-status-message chat-id :contact/message (generate-new-protocol-message params')]))))
+        fx      (-> (chat-model/upsert-chat cofx {:chat-id chat-id})
+                    (update :db add-message-to-db chat-id message true)
+                    (assoc :save-message message))]
+    (merge fx (send-contact-message (assoc cofx :db (:db fx)) chat-id (generate-new-protocol-message params')))))
 
 (defn- prepare-command
   [identity chat-id clock-value
@@ -286,7 +290,7 @@
         params'          (assoc params :command command')
 
         fx               {:db                      (-> (merge db (:db result))
-                                                       (add-message-to-db chat-id command' true)) 
+                                                       (add-message-to-db chat-id command' true))
                           :save-message            (-> command'
                                                        (assoc :chat-id chat-id)
                                                        (update-in [:content :params]
@@ -298,8 +302,8 @@
                                            {:chat-id chat-id})
                    (dissoc result :db))
 
-      true
-      (assoc :dispatch-n [[:protocol/send-status-message chat-id :contact/message (generate-new-protocol-message params')]]) 
+      #_true
+      #_(assoc :dispatch-n [[:protocol/send-status-message chat-id :contact/message (generate-new-protocol-message params')]])
 
       (:to-message command')
       (assoc :chat-requests/mark-as-answered {:chat-id    chat-id
