@@ -1,6 +1,5 @@
 (ns status-im.transport.handlers
-  (:require [re-frame.core :as re-frame]
-            [cognitect.transit :as transit]
+  (:require [re-frame.core :as re-frame] 
             [status-im.utils.handlers :as handlers]
             [status-im.transport.message.core :as message]
             [status-im.transport.core :as transport]

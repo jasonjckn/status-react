@@ -40,7 +40,7 @@
                           :payload  payload
                           :topic (get-topic chat-id)}}}))
 
-(defn send-with-pubkey [{:keys [db]} {:keys [payload chat-id]}]
+(defn send-with-pubkey [{:keys [db] :as cofx} {:keys [payload chat-id]}]
   (let [{:accounts/keys [account]} db
         {:keys [identity]} account]
     (assoc cofx :shh/post {:web3    (:web3 db)
