@@ -14,7 +14,6 @@
             [status-im.transport.message-cache :as message-cache]
             [status-im.chat.models :as models.chat]
             [status-im.transport.inbox :as inbox]
-            [status-im.transport.web3.keys :as web3.keys]
             [status-im.utils.datetime :as datetime]
             [taoensso.timbre :as log]
             [status-im.native-module.core :as status]

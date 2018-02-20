@@ -2,14 +2,14 @@
   (:require [re-frame.core :as re-frame]
             [cognitect.transit :as transit]
             [status-im.utils.handlers :as handlers]
-            [status-im.transport.message-cache :as message-cache]
             [status-im.transport.message.core :as message]
             [status-im.transport.core :as transport]
             [status-im.chat.models :as models.chat]
             [status-im.utils.datetime :as datetime]
             [taoensso.timbre :as log]
             [status-im.transport.utils :as web3.utils]
-            [cljs.reader :as reader]))
+            [cljs.reader :as reader]
+            [status-im.transport.message.transit :as transit]))
 
 (re-frame/reg-fx
   :stop-whisper
@@ -24,38 +24,18 @@
       :identity                    public-key
       :pending-messages            pending-messages})))
 
-;; TODO (yenda) add handlers for cutsom values https://github.com/cognitect/transit-cljs/wiki/Getting-Started
-(def reader (transit/reader :json))
-(def writer (transit/writer :json))
 
-(defn serialize [o] (transit/write writer o))
-(defn deserialize [o] (try (transit/read reader o) (catch :default e nil)))
-
-(defn get-message-id [status-message]
-  (web3.utils/sha3 status-message))
-
-(defn parse-payload [js-message]
-  (let [{:keys [payload sig]} (js->clj js-message :keywordize-keys true)
-        status-message        (-> payload
-                                  web3.utils/to-utf8)]
-    {:signature         sig
-     :message-id        (get-message-id status-message)
-     :status-message    (deserialize status-message)}))
-
-(defn deduplication [{:keys [message-id status-message] :as message}]
-  (when-not (message-cache/exists? message-id)
-    (message-cache/add! message-id)
-    message))
 
 (handlers/register-handler-fx
   :protocol/receive-whisper-message
   [re-frame/trim-v]
-  (fn [cofx [js-error js-message]]
-    (let [{:keys [signature status-message message-id]} (some-> js-message
-                                                                parse-payload
-                                                                deduplication)]
-      (when (and signature status-message message-id)
-        (message/receive (assoc status-message :message-id message-id) cofx nil signature)))))
+  (fn [cofx [js-error js-message chat-id]]
+    (let [{:keys [payload sig]} (js->clj js-message :keywordize-keys true)
+          status-message        (-> payload
+                                    web3.utils/to-utf8
+                                    transit/deserialize)]
+      (when (and sig status-message)
+        (message/receive status-message cofx (or chat-id sig) sig)))))
 
 (handlers/register-handler-fx
   :protocol/send-status-message-success

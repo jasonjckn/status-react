@@ -14,5 +14,6 @@
 
 (defn create-chat [chat-id]
   {:ack []
+   :waiting-ack []
    :seen []
    :pending []})

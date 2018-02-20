@@ -4,7 +4,8 @@
             [cljs.spec.alpha :as s]
             [status-im.utils.handlers :as handlers]
             [status-im.transport.utils :as web3.utils]
-            [taoensso.timbre :refer-macros [debug]]))
+            [taoensso.timbre :refer-macros [debug]]
+            [status-im.transport.message.transit :as transit]))
 
 (defn get-new-key-pair [{:keys [web3 on-success on-error]}]
   (if web3
@@ -73,14 +74,62 @@
         :or {success-event :protocol/send-status-message-success
              error-event   :protocol/send-status-message-error}}]
     (post-message {:web3       web3
-                   :whisper-message    whisper-message
+                   :whisper-message (update whisper-message :payload transit/serialize)
                    :on-success #(re-frame/dispatch [success-event %])
                    :on-error   #(re-frame/dispatch [error-event %])})))
 
-;; TODO (yenda) do we need such a function ? How do we avoid too much repetition in message records ?
-;; TODO (yenda) where do we deal with serialization deserialization ?
-(defn prepare-whisper-message [message]
-  (-> message
-      (assoc :powTarget 0.001
-             :powTime 1)
-      (update :payload serialize)))
+(defn add-sym-key
+  [{:keys [web3 sym-key-id on-success on-error]}]
+  (.. web3
+      -shh
+      (addSymKey sym-key-id (fn [err resp]
+                              (if-not err
+                                (on-success resp)
+                                (on-error err))))))
+
+(defn get-sym-key
+  [{:keys [web3 sym-key-id on-success on-error]}]
+  (.. web3
+      -shh
+      (getSymKey sym-key-id (fn [err resp]
+                              (if-not err
+                                (on-success resp)
+                                (on-error err))))))
+
+(defn new-sym-key
+  [{:keys [web3 on-success on-error]}]
+  (.. web3
+      -shh
+      (newSymKey (fn [err resp]
+                   (if-not err
+                     (on-success resp)
+                     (on-error err))))))
+
+(defn log-error [error]
+  (log/error :shh/get-new-sym-key-error error))
+
+(re-frame/reg-fx
+  :shh/add-new-sym-key
+  (fn [{:keys [web3 sym-key message success-event]}]
+    (shh/add-sym-key {:web3       web3
+                      :sym-key    sym-key
+                      :on-success (fn [sym-key-id]
+                                    (re-frame/dispatch [success-event {:chat-id chat-id
+                                                                       :message message
+                                                                       :sym-key-id sym-key-id}]))
+                      :on-error log-error})))
+
+(re-frame/reg-fx
+  :shh/get-new-sym-key
+  (fn [{:keys [web3 chat-id message success-event]}]
+    (new-sym-key {:web3       web3
+                  :on-success (fn [sym-key-id]
+                                (get-sym-key {:web3 web3
+                                              :sym-key-id %
+                                              :on-success (fn [sym-key]
+                                                            (re-frame/dispatch [success-event {:chat-id chat-id
+                                                                                               :message message
+                                                                                               :sym-key sym-key
+                                                                                               :sym-key-id sym-key-id}]))
+                                              :on-error log-error}))
+                  :on-error log-error})))

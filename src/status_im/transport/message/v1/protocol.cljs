@@ -1,49 +1,57 @@
-(ns status-im.transport.message.v1.protocol)
+(ns status-im.transport.message.v1.protocol
+  (:require [status-im.transport.utils :as transport.utils]
+            [status-im.transport.message-cache :as message-cache]))
 
 (def ttl (* 3600 1000)) ;; ttl of one hour
 
+(defn message-id [message]
+  (transport.utils/sha3 (pr-str message)))
+
 (defn get-topic [chat-id]
-  (subs (web3.utils/sha3 chat-id) 0 10))
+  (subs (transport.utils/sha3 chat-id) 0 10))
+
+(defn is-new? [message-id]
+  (when-not (message-cache/exists? message-id)
+    (message-cache/add! message-id)))
+
+(defn require-ack [cofx message-id chat-id]
+  (update-in cofx [:db :transport/chats chat-id :waiting-ack] conj message-id))
+
+(defn ack [cofx message-id chat-id]
+  (update-in cofx [:db :transport/chats chat-id :ack] conj message-id))
 
 (defn send [{:keys [db]} {:keys [payload chat-id]}]
   ;; we assume that the chat contains the contact public-key
   (let [{:accounts/keys [account]} db
         {:keys [identity]} account
-        {:keys [sym-key-id pending]} (get-in db [:transport chat-id])]
+        {:keys [sym-key-id]} (get-in db [:transport chat-id])]
     {:shh/post {:web3    (:web3 db)
                 :message {:sig identity
                           :symKeyId sym-key-id
                           :ttl ttl
+                          :powTarget 0.001
+                          :powTime 1
                           :payload (serialize payload)
                           :topic (get-topic chat-id)}}}))
 
 (defn send-with-pubkey [{:keys [db]} {:keys [payload chat-id]}]
-  {:shh/post {:web3    (:web3 db)
-              :message {:sig identity
-                        :pubKey public-key
-                        :ttl ttl
-                        :payload (serialize payload)
-                        :topic (get-topic chat-id)}}})
-
-
-(defrecord NewKey [password]
-  (send [message cofx chat-id]
-    (send-with-pubkey db {:chat-id chat-id
-                          :payload (conj pending message)}))
-  (receive [message db chat-id]
-    {:generate-sym-key-from-password {:password password
-                                      :chat-id chat-id}}))
+  (let [{:accounts/keys [account]} db
+        {:keys [identity]} account]
+    {:shh/post {:web3    (:web3 db)
+                :message {:sig identity
+                          :pubKey chat-id
+                          :ttl ttl
+                          :powTarget 0.001
+                          :powTime 1
+                          :payload (serialize payload)
+                          :topic (get-topic chat-id)}}}))
 
 (defrecord Ack [message-ids]
-  (send [])
-  (receive [message db chat-id]
-    ))
+  message/StatusMessage
+  (send [this cofx chat-id])
+  (receive [this db chat-id sig]))
 
 (defrecord Seen [message-ids]
-  (send [message db chat-id]
-    ))
-
-(defn generate-new-key-and-password [cofx chat-id]
-  (-> cofx
-      (assoc-in [:db :transport chat-id :pending] message)
-      (assoc-in [:shh/generate-sym-key-and-password chat-id])))
+  message/StatusMessage
+  (send [this cofx chat-id])
+  (receive [this cofx chat0id sig]))
