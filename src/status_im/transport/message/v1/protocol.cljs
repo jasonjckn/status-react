@@ -2,7 +2,8 @@
   (:require [status-im.transport.utils :as transport.utils]
             [status-im.transport.message-cache :as message-cache]
             [status-im.transport.db :as transport.db]
-            [status-im.transport.core :as transport]))
+            [status-im.transport.core :as transport]
+            [status-im.transport.message.core :as message]))
 
 (def ttl (* 3600 1000)) ;; ttl of one hour
 
@@ -19,7 +20,7 @@
   (when-not (message-cache/exists? message-id)
     (message-cache/add! message-id)))
 
-(defn require-ack [cofx message-id chat-id]
+(defn requires-ack [cofx message-id chat-id]
   (update-in cofx [:db :transport/chats chat-id :waiting-ack] conj message-id))
 
 (defn ack [cofx message-id chat-id]
@@ -36,20 +37,20 @@
                           :ttl ttl
                           :powTarget 0.001
                           :powTime 1
-                          :payload (serialize payload)
+                          :payload  payload
                           :topic (get-topic chat-id)}}}))
 
 (defn send-with-pubkey [{:keys [db]} {:keys [payload chat-id]}]
   (let [{:accounts/keys [account]} db
         {:keys [identity]} account]
-    {:shh/post {:web3    (:web3 db)
-                :message {:sig identity
-                          :pubKey chat-id
-                          :ttl ttl
-                          :powTarget 0.001
-                          :powTime 1
-                          :payload (serialize payload)
-                          :topic (get-topic chat-id)}}}))
+    (assoc cofx :shh/post {:web3    (:web3 db)
+                           :message {:sig identity
+                                     :pubKey chat-id
+                                     :ttl ttl
+                                     :powTarget 0.001
+                                     :powTime 1
+                                     :payload  payload
+                                     :topic (get-topic chat-id)}})))
 
 (defrecord Ack [message-ids]
   message/StatusMessage
